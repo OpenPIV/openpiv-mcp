@@ -2,7 +2,6 @@
 """Test the compute_piv tool with sample images."""
 
 import asyncio
-import os
 from mcp.client.stdio import stdio_client, StdioServerParameters
 from mcp import ClientSession
 

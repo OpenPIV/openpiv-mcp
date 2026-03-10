@@ -95,22 +95,22 @@ create_quiver_plot(
 
 ```bash
 # Test MCP server connection
-uv run python test_client.py
+uv run python tests/test_client.py
 
 # Test PIV computation with sample images
-uv run python test_piv_compute.py
+uv run python tests/test_piv_compute.py
 
-# Test quiver plot generation
-uv run python test_quiver.py
+# Test quiver plot generation (requires piv_results.csv from previous test)
+uv run python tests/test_quiver.py
 ```
 
 ### Test files
 
 | File | Description |
 |------|-------------|
-| `test_client.py` | Verifies MCP server connection and lists available tools |
-| `test_piv_compute.py` | Runs PIV analysis on sample images from openpiv package |
-| `test_quiver.py` | Generates quiver plot from PIV results |
+| `tests/test_client.py` | Verifies MCP server connection and lists available tools |
+| `tests/test_piv_compute.py` | Runs PIV analysis on sample images from openpiv package |
+| `tests/test_quiver.py` | Generates quiver plot from PIV results CSV |
 
 ### Expected output
 

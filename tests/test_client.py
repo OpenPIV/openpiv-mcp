@@ -2,7 +2,6 @@
 """Test client for the OpenPIV MCP server."""
 
 import asyncio
-import json
 from mcp.client.stdio import stdio_client, StdioServerParameters
 from mcp import ClientSession
 
