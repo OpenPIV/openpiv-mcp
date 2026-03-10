@@ -1,7 +1,7 @@
 mcp>=1.26.0
-openpiv>=0.25.1
-numpy>=2.0.0,<2.3.0
+numpy>=1.21.6,<2.0.0
 pandas>=2.0.0
 matplotlib>=3.9.0
 setuptools>=82.0.1
 uvicorn>=0.30.0
+git+https://github.com/OpenPIV/openpiv.git

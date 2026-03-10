@@ -1,15 +1,15 @@
 [project]
 name = "openpiv-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "OpenPIV MCP server for PIV analysis"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
-    "matplotlib>=3.10.8",
     "mcp>=1.26.0",
-    "numpy>=2.4.3",
-    "openpiv>=0.25.1",
-    "pandas>=3.0.1",
+    "numpy>=1.21.6,<2.0.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.9.0",
     "setuptools>=82.0.1",
-    "setuptools-scm>=9.2.2",
+    "uvicorn>=0.30.0",
+    "openpiv @ git+https://github.com/OpenPIV/openpiv.git",
 ]
