@@ -1,0 +1,16 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+demo/
+tests/
+*.md
+!README_HF.md
+piv_quiver.png
+*.egg-info
+dist/
+build/

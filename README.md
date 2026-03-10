@@ -139,6 +139,52 @@ Summary Statistics:
 | pandas | >=3.0.1 |
 | matplotlib | (auto-installed) |
 
+## Deployment
+
+### Hugging Face Spaces (Free)
+
+Deploy to Hugging Face Spaces for free HTTP access:
+
+1. **Create a new Space** at https://huggingface.co/spaces
+   - Click "Create new Space"
+   - Name: `openpiv-mcp`
+   - License: MIT
+   - Select **Docker** SDK
+
+2. **Connect your GitHub repo**
+   - In your Space settings, enable "Link to GitHub repository"
+   - Select `openpiv/openpiv-mcp`
+
+3. **Configure the Space**
+   - Copy `README_HF.md` content to your Space's README.md (HF metadata)
+   - The Dockerfile will build automatically
+
+4. **Connect MCP client**
+   - Once deployed, your endpoint will be: `https://<username>-openpiv-mcp.hf.space`
+   - Configure your MCP client:
+
+```json
+{
+  "mcpServers": {
+    "openpiv": {
+      "url": "https://<username>-openpiv-mcp.hf.space/mcp"
+    }
+  }
+}
+```
+
+**Note:** Free Spaces sleep after 15 minutes of inactivity. First request after sleep has ~30s cold start.
+
+### Local HTTP Server
+
+Run the server with HTTP transport locally:
+
+```bash
+uv run python src/http_server.py
+```
+
+Connect to `http://localhost:8000/mcp`
+
 ## License
 
 MIT License - see LICENSE file for details.
