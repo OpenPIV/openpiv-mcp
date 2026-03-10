@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY app.py .
 
+# Add src to Python path
+ENV PYTHONPATH=/app/src
+
 # Expose the port Hugging Face expects
 EXPOSE 7860
 
