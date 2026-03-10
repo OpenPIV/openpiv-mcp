@@ -1,0 +1,15 @@
+[project]
+name = "openpiv-mcp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "mcp>=1.26.0",
+    "numpy>=2.4.3",
+    "openpiv>=0.25.1",
+    "pandas>=3.0.1",
+    "setuptools>=82.0.1",
+    "setuptools-scm>=9.2.2",
+]
