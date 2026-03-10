@@ -1,14 +1,30 @@
+---
 title: OpenPIV MCP Server
 emoji: 🌊
 colorFrom: blue
 colorTo: purple
 sdk: docker
+sdk_version: edge
 pinned: false
 license: mit
+---
 
-# Hardware configuration
-hardware: cpu-basic
+# OpenPIV MCP Server
 
-# Scale to zero when idle (saves resources)
-# Note: First request after idle period will have cold start delay
-scale_to_zero_timeout: 15
+Particle Image Velocimetry (PIV) analysis via MCP protocol.
+
+## Features
+
+- **compute_piv**: Compute velocity fields from image pairs
+- **create_quiver_plot**: Generate vector field visualizations
+
+## Usage
+
+Connect your MCP client to:
+```
+https://alexliberzon-openpiv-mcp.hf.space/mcp
+```
+
+## License
+
+MIT License
