@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies for matplotlib and openpiv
-# Updated: 2026-03-11 - uvicorn with permissive proxy config
+# Updated: 2026-03-11 - uvicorn with h11 protocol for HF compatibility
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
