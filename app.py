@@ -1,11 +1,10 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
 
-This app runs the MCP server with HTTP transport on Hugging Face Spaces.
-The server exposes PIV analysis tools via HTTP.
+This app runs the MCP server with SSE transport on Hugging Face Spaces.
 
 API Endpoint:
-    /mcp - MCP HTTP endpoint (streamable HTTP)
+    /mcp - MCP SSE endpoint
     / - Health check endpoint
 
 Usage with MCP client:
@@ -16,12 +15,11 @@ Usage with MCP client:
 import os
 import sys
 import logging
-import uvicorn
 
 # Add src directory to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse, PlainTextResponse
 from openpiv_mcp import mcp
 
@@ -33,13 +31,16 @@ logger = logging.getLogger(__name__)
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 7860))
 
-# Create FastAPI app with permissive settings for HF Spaces proxy
+# Get the MCP SSE app
+mcp_sse_app = mcp.sse_app()
+
+# Create a FastAPI wrapper for health checks
 app = FastAPI(
     title="OpenPIV MCP Server",
     description="Particle Image Velocimetry analysis via MCP protocol",
 )
 
-# Health check endpoints for Hugging Face Spaces
+# Health check endpoints
 @app.get("/", response_class=PlainTextResponse)
 async def root():
     """Root health check endpoint."""
@@ -50,22 +51,15 @@ async def health():
     """Health check endpoint."""
     return {"status": "healthy", "service": "openpiv-mcp"}
 
-# Mount the MCP streamable HTTP app at /mcp
-# The streamable_http_app() creates a Starlette app with /mcp route
-# We mount it at root to avoid path duplication
-mcp_app = mcp.streamable_http_app()
-# Replace the /mcp route with a root route
-for route in mcp_app.routes:
-    if hasattr(route, 'path') and route.path == '/mcp':
-        route.path = '/'
-        break
-app.mount("/mcp", mcp_app)
+# Mount MCP app at /mcp
+app.mount("/mcp", mcp_sse_app)
 
 if __name__ == "__main__":
+    import uvicorn
+    
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
     logger.info("MCP endpoint: /mcp")
 
-    # Configure uvicorn with h11 protocol for HF Spaces compatibility
     config = uvicorn.Config(
         app,
         host=HOST,
