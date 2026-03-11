@@ -23,8 +23,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from openpiv_mcp import mcp
 
 # Configure logging
@@ -35,26 +33,11 @@ logger = logging.getLogger(__name__)
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 7860))
 
-# Create the base ASGI app for HTTP transport
-base_app = mcp.streamable_http_app()
-
-# Create a FastAPI wrapper to handle Hugging Face Spaces requirements
+# Create FastAPI app with permissive settings for HF Spaces proxy
 app = FastAPI(
     title="OpenPIV MCP Server",
     description="Particle Image Velocimetry analysis via MCP protocol",
 )
-
-# Middleware to fix Host header issues with Hugging Face Spaces proxy
-class HostHeaderMiddleware(BaseHTTPMiddleware):
-    """Remove strict Host header validation for Hugging Face Spaces proxy."""
-    async def dispatch(self, request: Request, call_next):
-        # Allow all Host headers (Hugging Face Spaces uses proxy headers)
-        return await call_next(request)
-
-app.add_middleware(HostHeaderMiddleware)
-
-# Mount the MCP streamable HTTP app at /mcp
-app.mount("/mcp", base_app)
 
 # Health check endpoints for Hugging Face Spaces
 @app.get("/", response_class=PlainTextResponse)
@@ -66,6 +49,9 @@ async def root():
 async def health():
     """Health check endpoint."""
     return {"status": "healthy", "service": "openpiv-mcp"}
+
+# Mount the MCP streamable HTTP app at /mcp
+app.mount("/mcp", mcp.streamable_http_app())
 
 if __name__ == "__main__":
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
