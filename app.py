@@ -31,6 +31,6 @@ app = mcp.streamable_http_app()
 if __name__ == "__main__":
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
     logger.info("MCP endpoint: /mcp")
-    
-    # Run with uvicorn
-    uvicorn.run(app, host=HOST, port=PORT)
+
+    # Run with uvicorn - allow all forwarded IPs for Hugging Face Spaces
+    uvicorn.run(app, host=HOST, port=PORT, forwarded_allow_ips="*")
