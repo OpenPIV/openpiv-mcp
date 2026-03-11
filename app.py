@@ -16,6 +16,8 @@ import os
 import logging
 import uvicorn
 from openpiv_mcp import mcp
+from starlette.middleware import Middleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,8 +27,33 @@ logger = logging.getLogger(__name__)
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 7860))
 
+
+class HostHeaderFix:
+    """Middleware to fix Host header from Hugging Face proxy."""
+    
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+    
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            # Get headers from scope
+            headers = dict(scope.get("headers", []))
+            
+            # Check for x-proxied-host header from HF proxy
+            proxied_host = headers.get(b"x-proxied-host")
+            if proxied_host:
+                # Replace host header with the proxied host
+                headers[b"host"] = proxied_host
+                scope["headers"] = list(headers.items())
+        
+        await self.app(scope, receive, send)
+
+
 # Create the ASGI app for HTTP transport
 app = mcp.streamable_http_app()
+
+# Add the Host header fix middleware
+app.add_middleware(HostHeaderFix)
 
 if __name__ == "__main__":
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
