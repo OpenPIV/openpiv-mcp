@@ -14,7 +14,7 @@ Usage with MCP client:
 
 import os
 import logging
-import asyncio
+import uvicorn
 from openpiv_mcp import mcp
 
 # Configure logging
@@ -28,22 +28,19 @@ PORT = int(os.environ.get("PORT", 7860))
 # Create the ASGI app for HTTP transport
 app = mcp.streamable_http_app()
 
-
-async def serve():
-    """Serve the app using hypercorn (more permissive with Host headers)."""
-    from hypercorn.config import Config
-    from hypercorn.asyncio import serve as hypercorn_serve
-    
-    config = Config()
-    config.bind = [f"{HOST}:{PORT}"]
-    config.accesslog = "-"
-    config.errorlog = "-"
-    
+if __name__ == "__main__":
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
     logger.info("MCP endpoint: /mcp")
-    
-    await hypercorn_serve(app, config)
 
-
-if __name__ == "__main__":
-    asyncio.run(serve())
+    # Configure uvicorn to be more permissive behind HF proxy
+    config = uvicorn.Config(
+        app,
+        host=HOST,
+        port=PORT,
+        forwarded_allow_ips="*",
+        proxy_headers=True,
+        server_header=False,
+        date_header=False,
+    )
+    server = uvicorn.Server(config)
+    server.run()
