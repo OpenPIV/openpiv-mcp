@@ -50,17 +50,16 @@ async def health():
     """Health check endpoint."""
     return {"status": "healthy", "service": "openpiv-mcp"}
 
-# Mount the MCP streamable HTTP ASGI app at /mcp
-# Extract the inner StreamableHTTPASGIApp from the Starlette wrapper
-mcp_starlette = mcp.streamable_http_app()
-mcp_asgi_app = None
-for route in mcp_starlette.routes:
-    if hasattr(route, 'app'):
-        mcp_asgi_app = route.app
+# Mount the MCP streamable HTTP app at /mcp
+# The streamable_http_app() creates a Starlette app with /mcp route
+# We mount it at root to avoid path duplication
+mcp_app = mcp.streamable_http_app()
+# Replace the /mcp route with a root route
+for route in mcp_app.routes:
+    if hasattr(route, 'path') and route.path == '/mcp':
+        route.path = '/'
         break
-
-if mcp_asgi_app:
-    app.mount("/mcp", mcp_asgi_app)
+app.mount("/mcp", mcp_app)
 
 if __name__ == "__main__":
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
