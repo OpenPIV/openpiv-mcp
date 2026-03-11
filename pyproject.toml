@@ -11,5 +11,6 @@ dependencies = [
     "matplotlib>=3.9.0",
     "setuptools>=82.0.1",
     "uvicorn>=0.30.0",
+    "fastapi>=0.100.0",
     "openpiv",
 ]
