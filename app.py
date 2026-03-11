@@ -57,18 +57,14 @@ if __name__ == "__main__":
     logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
     logger.info("MCP endpoint: /mcp")
 
-    # Configure uvicorn with h11 protocol and permissive proxy settings for HF Spaces
+    # Configure uvicorn with h11 protocol for HF Spaces compatibility
     config = uvicorn.Config(
         app,
         host=HOST,
         port=PORT,
         forwarded_allow_ips="*",
         proxy_headers=True,
-        server_header=False,
-        date_header=False,
         http="h11",
-        loop="asyncio",
-        trusted_hosts="*",  # Allow all Host headers from HF proxy
     )
     server = uvicorn.Server(config)
     server.run()
