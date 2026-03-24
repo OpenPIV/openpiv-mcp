@@ -1,6 +1,5 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
-v3 - Fixed by running MCP directly
 
 This app runs the MCP server with Streamable HTTP transport.
 
@@ -9,8 +8,8 @@ API Endpoint:
     /health - Health check endpoint (JSON)
 
 Usage with MCP client:
-    Configure your MCP client to connect to:
-    https://<your-space>.hf.space/mcp
+    Use: https://<your-space>.hf.space/mcp
+    Note: Do NOT add trailing slash - use exactly /mcp
 """
 
 import os
@@ -48,6 +47,8 @@ if __name__ == "__main__":
         async with session_manager.run():
             yield
 
+    # Create routes list without the /mcp route to prevent Starlette redirect
+    # Mount MCP directly at root so /mcp works
     app = Starlette(
         routes=[
             Route("/", root),
@@ -56,9 +57,8 @@ if __name__ == "__main__":
         lifespan=lifespan,
     )
 
-    # Mount MCP at root so /mcp works
-    # The MCP app handles /mcp, so / on host becomes /mcp on container
-    # but we want /mcp on host, so mount at root makes MCP's /mcp become /mcp
+    # Mount MCP at root - MCP's /mcp becomes /mcp on host
+    # We don't add explicit /mcp route to avoid Starlette's redirect
     app.mount("/", mcp_app)
 
     # Run with uvicorn
