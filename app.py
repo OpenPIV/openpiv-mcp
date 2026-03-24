@@ -1,15 +1,14 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
 
-This app runs the MCP server with Streamable HTTP transport.
+This app runs the MCP server with SSE transport (more compatible with HF proxy).
 
 API Endpoint:
-    /mcp - MCP Streamable HTTP endpoint (no trailing slash)
+    /mcp - MCP SSE endpoint (with /mcp/ redirect)
     /health - Health check endpoint (JSON)
 
 Usage with MCP client:
-    IMPORTANT: Use exactly /mcp (NO trailing slash)
-    Example: https://alexliberzon-openpiv-mcp.hf.space/mcp
+    Use: https://alexliberzon-openpiv-mcp.hf.space/mcp
 """
 
 import os
@@ -24,51 +23,35 @@ PORT = int(os.environ.get("PORT", 7860))
 
 if __name__ == "__main__":
     import uvicorn
-    from starlette.applications import Starlette
-    from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
-    from starlette.routing import Route
-    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
     from openpiv_mcp import mcp
 
-    # Create MCP app - this is the core MCP server
-    mcp_app = mcp.streamable_http_app()
-    session_manager = mcp.session_manager
+    # Get MCP SSE app
+    mcp_sse_app = mcp.sse_app()
 
-    # Health check endpoints
-    async def health(request):
-        return JSONResponse({"status": "healthy", "service": "openpiv-mcp"})
-
-    async def root(request):
-        return PlainTextResponse(
-            "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
-        )
-
-    # Redirect /mcp/ to /mcp to avoid 404
-    async def redirect_mcp_slash(request):
-        return RedirectResponse(url="/mcp", status_code=307)
-
-    # Create app with proper lifespan
-    async def lifespan(app):
-        async with session_manager.run():
-            yield
-
-    # Create app with explicit routes to control routing behavior
-    # Put redirect for /mcp/ first - Mount has lower priority so explicit routes match first
-    app = Starlette(
-        routes=[
-            Route("/", root),
-            Route("/health", health),
-            Route("/mcp/", redirect_mcp_slash),  # Redirect /mcp/ -> /mcp
-        ],
-        lifespan=lifespan,
+    # Create FastAPI app
+    app = FastAPI(
+        title="OpenPIV MCP Server",
+        description="Particle Image Velocimetry analysis via MCP protocol",
     )
 
-    # Mount MCP at root - MCP's /mcp becomes /mcp on host
-    # Because explicit Route /mcp/ is defined above, it will match first
-    app.mount("/", mcp_app)
+    # Health check endpoints
+    @app.get("/")
+    def root():
+        return "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
 
-    # Add ProxyHeadersMiddleware to handle HF proxy
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+    @app.get("/health")
+    def health():
+        return JSONResponse({"status": "healthy", "service": "openpiv-mcp"})
 
-    # Run with uvicorn - allow all hosts for HF proxy
+    # Add redirect from /mcp/ to /mcp to fix trailing slash issue
+    @app.get("/mcp/")
+    def redirect_mcp():
+        return RedirectResponse(url="/mcp", status_code=307)
+
+    # Mount MCP at /mcp - now /mcp/ goes to redirect handler first
+    app.mount("/mcp", mcp_sse_app)
+
+    # Run with uvicorn - allow HF proxy
     uvicorn.run(app, host=HOST, port=PORT, forwarded_allow_ips="*")
