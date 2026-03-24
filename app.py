@@ -24,40 +24,10 @@ PORT = int(os.environ.get("PORT", 7860))
 
 if __name__ == "__main__":
     import uvicorn
-    from starlette.applications import Starlette
-    from starlette.responses import JSONResponse, PlainTextResponse
-    from starlette.routing import Route, Mount
     from openpiv_mcp import mcp
 
-    # Create MCP app first to initialize session_manager
-    mcp_app = mcp.streamable_http_app()
-
-    # Get the session manager for lifespan
-    session_manager = mcp.session_manager
-
-    # Create health check endpoints
-    async def health(request):
-        return JSONResponse({"status": "healthy", "service": "openpiv-mcp"})
-
-    async def root(request):
-        return PlainTextResponse(
-            "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
-        )
-
-    # Create app with proper lifespan to initialize MCP session manager
-    async def lifespan(app):
-        async with session_manager.run():
-            yield
-
-    # Create combined app with health endpoints and proper lifespan
-    app = Starlette(
-        routes=[
-            Route("/", root),
-            Route("/health", health),
-            Mount("/", app=mcp_app),
-        ],
-        lifespan=lifespan,
-    )
+    # Get the ASGI app from MCP - this is the cleanest way
+    app = mcp.streamable_http_app()
 
     # Run with uvicorn
     uvicorn.run(app, host=HOST, port=PORT)
