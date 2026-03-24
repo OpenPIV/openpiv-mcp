@@ -3,11 +3,10 @@ title: OpenPIV MCP Server
 emoji: 🌊
 colorFrom: blue
 colorTo: purple
-sdk: gradio
-sdk_version: 5.0.0
+sdk: docker
+sdk_version: edge
 pinned: false
 license: mit
-app_file: gradio_app.py
 ---
 
 # OpenPIV MCP Server

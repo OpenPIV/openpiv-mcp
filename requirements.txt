@@ -1,4 +1,5 @@
 gradio>=5.0.0
+mcp>=1.26.0
 openpiv
 numpy>=1.21.6,<2.0.0
 pandas>=2.0.0
