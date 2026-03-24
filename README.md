@@ -22,95 +22,61 @@ Particle Image Velocimetry (PIV) analysis via MCP protocol.
 
 ## Quick Start
 
-### Hugging Face Spaces (Recommended)
+### Option 1: Local MCP Server (Recommended for Development)
+
+Run the MCP server locally using stdio transport:
+
+```bash
+# Clone and install
+git clone https://huggingface.co/spaces/alexliberzon/openpiv-mcp
+cd openpiv-mcp
+pip install -r requirements.txt
+
+# Run the MCP server
+python src/openpiv_mcp.py
+```
+
+**Claude Desktop config** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "openpiv": {
+      "command": "python",
+      "args": ["/absolute/path/to/openpiv-mcp/src/openpiv_mcp.py"]
+    }
+  }
+}
+```
+
+### Option 2: Hugging Face Spaces (Remote HTTP)
 
 The server is deployed on Hugging Face Spaces with both web UI and MCP endpoint:
 
 - **Web UI**: https://alexliberzon-openpiv-mcp.hf.space
 - **MCP Endpoint**: `https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/`
 
-### Using with MCP Clients
-
-#### Claude Desktop / Cursor / Windsurf
-
-Add to your MCP client configuration:
-
+**MCP Client Config:**
 ```json
 {
   "mcpServers": {
     "openpiv": {
-      "url": "https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/",
-      "description": "PIV analysis for fluid dynamics"
+      "url": "https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/"
     }
   }
 }
 ```
 
-**Config file locations:**
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**Note:** When using the remote MCP server, images must be provided as:
+- HTTP/HTTPS URLs (e.g., `https://example.com/image.png`)
+- Base64 data URLs (e.g., `data:image/png;base64,iVBOR...`)
 
-#### Qwen Code (Python)
+### Option 3: Web UI Only
 
-```python
-from mcp.client.streamable_http import streamablehttp_client
-from mcp import ClientSession
-import asyncio
-
-async def analyze():
-    url = "https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/"
-    
-    async with streamablehttp_client(url) as (read, write, _):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            
-            # List available tools
-            tools = await session.list_tools()
-            print([t.name for t in tools.tools])
-            
-            # Call compute_piv tool
-            result = await session.call_tool(
-                "compute_piv",
-                arguments={
-                    "image_a": "path/to/image1.png",
-                    "image_b": "path/to/image2.png",
-                    "window_size": 32,
-                    "overlap": 16,
-                    "dt": 1.0
-                }
-            )
-            print(result.content[0].text)
-
-asyncio.run(analyze())
-```
-
-### Local Development
-
-```bash
-# Clone the repository
-git clone https://huggingface.co/spaces/alexliberzon/openpiv-mcp
-cd openpiv-mcp
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the Gradio app with MCP server
-python gradio_app.py
-```
-
-The app will be available at `http://localhost:7860` and MCP endpoint at `/gradio_api/mcp/`
-
-## Web UI Usage
-
-1. **PIV Analysis Tab**:
-   - Upload two consecutive frames (Frame A and Frame B)
-   - Adjust window size, overlap, and time delay parameters
-   - Click "Compute PIV" to get velocity field data
-
-2. **Quiver Plot Tab**:
-   - Upload the CSV file from PIV analysis
-   - Adjust plot title and arrow scale
-   - Click "Create Quiver Plot" to visualize the velocity field
+Visit https://alexliberzon-openpiv-mcp.hf.space to use the interactive web interface:
+1. Upload two consecutive frames (Frame A and Frame B)
+2. Adjust parameters (window size, overlap, time delay)
+3. Click "Compute PIV" to get velocity field data
+4. Use the "Quiver Plot" tab to visualize results
 
 ## API Reference
 
@@ -119,8 +85,8 @@ The app will be available at `http://localhost:7860` and MCP endpoint at `/gradi
 Compute Particle Image Velocimetry velocity field from two images.
 
 **Parameters:**
-- `image_a` (PIL.Image): First image frame
-- `image_b` (PIL.Image): Second image frame
+- `image_a` (str): Image URL, base64 data URL, or file path (local only)
+- `image_b` (str): Image URL, base64 data URL, or file path (local only)
 - `window_size` (int): Interrogation window size (default: 32)
 - `overlap` (int): Overlap between windows (default: 16)
 - `dt` (float): Time delay between frames (default: 1.0)
@@ -150,6 +116,25 @@ Create a quiver (vector field) plot from PIV results.
 - Mean U velocity: -0.0814
 - Max U velocity: 1.7142
 - Max V velocity: 6.9067
+```
+
+## Local Testing
+
+```bash
+# Test with demo images
+python -c "
+from openpiv_client import compute_piv, create_quiver_plot
+import asyncio
+
+async def test():
+    result = await compute_piv(
+        image_a_path='demo/test1/exp1_001_a.bmp',
+        image_b_path='demo/test1/exp1_001_b.bmp'
+    )
+    print(result)
+
+asyncio.run(test())
+"
 ```
 
 ## License
