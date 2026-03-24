@@ -304,11 +304,6 @@ with gr.Blocks(title="OpenPIV MCP Server") as demo:
     **Usage with Qwen Code:**
     Add the MCP server configuration to enable PIV analysis directly in your AI assistant.
     """)
-    
-    # MCP-only API endpoints (not shown in UI)
-    with gr.Blocks(api_only=True):
-        gr.load_api(compute_piv_mcp, name="compute_piv")
-        gr.load_api(create_quiver_plot, name="create_quiver_plot")
 
 # Launch with MCP server enabled
 if __name__ == "__main__":
