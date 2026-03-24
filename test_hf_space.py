@@ -12,7 +12,7 @@ import json
 import sys
 
 
-def make_request(url, data=None):
+def make_request(url, data=None, follow_redirects=False):
     """Make HTTP request."""
     req = urllib.request.Request(url)
     req.add_header("Content-Type", "application/json")
@@ -22,19 +22,33 @@ def make_request(url, data=None):
         req.data = json.dumps(data).encode("utf-8")
 
     try:
-        with urllib.request.urlopen(req) as response:
+        # Use a redirect handler that doesn't follow automatically
+        import http.cookiejar
+
+        cj = http.cookiejar.CookieJar()
+
+        if follow_redirects:
+            # Use default opener that follows redirects
+            opener = urllib.request.build_opener()
+        else:
+            # Use opener that doesn't follow redirects
+            opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler())
+
+        with opener.open(req) as response:
             return response.status, response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8")
+    except urllib.error.URLError as e:
+        return 0, str(e)
 
 
 def test_hf_space():
     """Test the HF Space MCP server."""
     base_url = "https://alexliberzon-openpiv-mcp.hf.space"
 
-    print("=" * 50)
+    print("=" * 60)
     print("Testing HF Space MCP Server")
-    print("=" * 50)
+    print("=" * 60)
 
     # Test health
     print("\n1. Testing health endpoint...")
@@ -48,8 +62,8 @@ def test_hf_space():
     print(f"   Status: {status}")
     print(f"   Body: {body}")
 
-    # Test MCP initialize
-    print("\n3. Testing MCP initialize (without trailing slash)...")
+    # Test MCP initialize without redirect following
+    print("\n3. Testing MCP /mcp (no redirect follow)...")
     status, body = make_request(
         f"{base_url}/mcp",
         {
@@ -64,17 +78,30 @@ def test_hf_space():
         },
     )
     print(f"   Status: {status}")
-    print(f"   Body: {body[:200]}...")
+    print(f"   Body: {body[:200] if body else 'empty'}...")
 
-    # Check if we got a redirect
-    if status == 307:
-        print(
-            "\n   ⚠️ Got 307 redirect - the MCP server requires trailing slash handling"
-        )
+    # Test MCP with redirect following
+    print("\n4. Testing MCP /mcp/ (with redirect follow)...")
+    status, body = make_request(
+        f"{base_url}/mcp/",
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "test", "version": "1.0"},
+            },
+        },
+        follow_redirects=True,
+    )
+    print(f"   Status: {status}")
+    print(f"   Body: {body[:200] if body else 'empty'}...")
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     print("Test complete")
-    print("=" * 50)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

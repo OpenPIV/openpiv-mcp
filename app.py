@@ -52,16 +52,18 @@ if __name__ == "__main__":
             yield
 
     # Create app with explicit routes to control routing behavior
+    # Put redirect for /mcp/ first - Mount has lower priority so explicit routes match first
     app = Starlette(
         routes=[
             Route("/", root),
             Route("/health", health),
-            Route("/mcp/", redirect_mcp_slash),  # Redirect /mcp/ back to /mcp
+            Route("/mcp/", redirect_mcp_slash),  # Redirect /mcp/ -> /mcp
         ],
         lifespan=lifespan,
     )
 
     # Mount MCP at root - MCP's /mcp becomes /mcp on host
+    # Because explicit Route /mcp/ is defined above, it will match first
     app.mount("/", mcp_app)
 
     # Run with uvicorn
