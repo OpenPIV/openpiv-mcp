@@ -15,11 +15,27 @@ import matplotlib.pyplot as plt
 import tempfile
 import os
 from PIL import Image
+import requests
+from io import BytesIO
+
+
+def _load_image(image_input):
+    """Load image from various input types (file path, URL, PIL Image)."""
+    if isinstance(image_input, Image.Image):
+        return image_input
+    elif isinstance(image_input, str):
+        if image_input.startswith('http'):
+            response = requests.get(image_input)
+            return Image.open(BytesIO(response.content))
+        else:
+            return Image.open(image_input)
+    else:
+        raise ValueError(f"Unsupported image type: {type(image_input)}")
 
 
 def compute_piv(
-    image_a: Image.Image,
-    image_b: Image.Image,
+    image_a,
+    image_b,
     window_size: int = 32,
     overlap: int = 16,
     dt: float = 1.0
@@ -28,8 +44,8 @@ def compute_piv(
     Compute Particle Image Velocimetry (PIV) velocity field from two images.
     
     Args:
-        image_a: First image frame (grayscale or RGB)
-        image_b: Second image frame (grayscale or RGB)
+        image_a: First image frame (file path, URL, or PIL Image)
+        image_b: Second image frame (file path, URL, or PIL Image)
         window_size: Interrogation window size in pixels (default 32)
         overlap: Overlap between adjacent windows in pixels (default 16)
         dt: Time delay between frames in seconds (default 1.0)
@@ -38,9 +54,9 @@ def compute_piv(
         Summary statistics and path to CSV file with velocity data
     """
     try:
-        # Convert PIL images to numpy arrays
-        frame_a = np.array(image_a).astype(np.int32)
-        frame_b = np.array(image_b).astype(np.int32)
+        # Load images
+        frame_a = np.array(_load_image(image_a)).astype(np.int32)
+        frame_b = np.array(_load_image(image_b)).astype(np.int32)
         
         # Handle RGB images by converting to grayscale
         if len(frame_a.shape) == 3:
@@ -88,7 +104,8 @@ def compute_piv(
             f"Full data saved to: `{output_path}`"
         )
     except Exception as e:
-        return f"**Error:** {str(e)}"
+        import traceback
+        return f"**Error:** {str(e)}\n\n{traceback.format_exc()}"
 
 
 def create_quiver_plot(
@@ -113,8 +130,10 @@ def create_quiver_plot(
         # Handle file upload vs path
         if hasattr(csv_file, 'name'):
             csv_path = csv_file.name
+        elif isinstance(csv_file, str):
+            csv_path = csv_file
         else:
-            csv_path = str(csv_file)
+            raise ValueError(f"Unsupported CSV file type: {type(csv_file)}")
         
         df = pd.read_csv(csv_path)
         
@@ -148,7 +167,8 @@ def create_quiver_plot(
         
         return Image.open(output_path)
     except Exception as e:
-        raise gr.Error(f"Error creating plot: {str(e)}")
+        import traceback
+        raise gr.Error(f"Error creating plot: {str(e)}\n{traceback.format_exc()}")
 
 
 # Create Gradio interface
