@@ -1,6 +1,6 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
-v2 - Updated to use Streamable HTTP transport
+v3 - Fixed by running MCP directly
 
 This app runs the MCP server with Streamable HTTP transport.
 
@@ -25,10 +25,41 @@ PORT = int(os.environ.get("PORT", 7860))
 
 if __name__ == "__main__":
     import uvicorn
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse, PlainTextResponse
+    from starlette.routing import Route
     from openpiv_mcp import mcp
 
-    # Get the ASGI app from MCP - this is the cleanest way
-    app = mcp.streamable_http_app()
+    # Create MCP app - this is the core MCP server
+    mcp_app = mcp.streamable_http_app()
+    session_manager = mcp.session_manager
+
+    # Health check endpoints
+    async def health(request):
+        return JSONResponse({"status": "healthy", "service": "openpiv-mcp"})
+
+    async def root(request):
+        return PlainTextResponse(
+            "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
+        )
+
+    # Create app with proper lifespan
+    async def lifespan(app):
+        async with session_manager.run():
+            yield
+
+    app = Starlette(
+        routes=[
+            Route("/", root),
+            Route("/health", health),
+        ],
+        lifespan=lifespan,
+    )
+
+    # Mount MCP at root so /mcp works
+    # The MCP app handles /mcp, so / on host becomes /mcp on container
+    # but we want /mcp on host, so mount at root makes MCP's /mcp become /mcp
+    app.mount("/", mcp_app)
 
     # Run with uvicorn
     uvicorn.run(app, host=HOST, port=PORT)
