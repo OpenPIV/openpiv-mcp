@@ -4,12 +4,12 @@ Hugging Face Spaces entry point for OpenPIV MCP Server.
 This app runs the MCP server with Streamable HTTP transport.
 
 API Endpoint:
-    /mcp - MCP Streamable HTTP endpoint
+    /mcp - MCP Streamable HTTP endpoint (no trailing slash)
     /health - Health check endpoint (JSON)
 
 Usage with MCP client:
-    Use: https://<your-space>.hf.space/mcp
-    Note: Do NOT add trailing slash - use exactly /mcp
+    IMPORTANT: Use exactly /mcp (NO trailing slash)
+    Example: https://alexliberzon-openpiv-mcp.hf.space/mcp
 """
 
 import os
@@ -25,7 +25,7 @@ PORT = int(os.environ.get("PORT", 7860))
 if __name__ == "__main__":
     import uvicorn
     from starlette.applications import Starlette
-    from starlette.responses import JSONResponse, PlainTextResponse
+    from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
     from starlette.routing import Route
     from openpiv_mcp import mcp
 
@@ -42,23 +42,26 @@ if __name__ == "__main__":
             "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
         )
 
+    # Redirect /mcp/ to /mcp to avoid 404
+    async def redirect_mcp_slash(request):
+        return RedirectResponse(url="/mcp", status_code=307)
+
     # Create app with proper lifespan
     async def lifespan(app):
         async with session_manager.run():
             yield
 
-    # Create routes list without the /mcp route to prevent Starlette redirect
-    # Mount MCP directly at root so /mcp works
+    # Create app with explicit routes to control routing behavior
     app = Starlette(
         routes=[
             Route("/", root),
             Route("/health", health),
+            Route("/mcp/", redirect_mcp_slash),  # Redirect /mcp/ back to /mcp
         ],
         lifespan=lifespan,
     )
 
     # Mount MCP at root - MCP's /mcp becomes /mcp on host
-    # We don't add explicit /mcp route to avoid Starlette's redirect
     app.mount("/", mcp_app)
 
     # Run with uvicorn
