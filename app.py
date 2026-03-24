@@ -64,10 +64,12 @@ if __name__ == "__main__":
     # Mount MCP at root - MCP's /mcp becomes /mcp on host
     app.mount("/", mcp_app)
 
-    # Run with uvicorn - allow all hosts for HF proxy
+    # Run with uvicorn using h11 for HF Spaces compatibility
+    # h11 (HTTP/1.1) works better with HF proxy than httptools (HTTP/2)
     uvicorn.run(
         app,
         host=HOST,
         port=PORT,
         forwarded_allow_ips="*",
+        http="h11",
     )

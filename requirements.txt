@@ -7,3 +7,4 @@ uvicorn>=0.30.0
 fastapi>=0.100.0
 openpiv
 imageio[pyav]
+h11>=0.14.0
