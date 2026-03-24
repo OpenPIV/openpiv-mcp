@@ -20,15 +20,24 @@ from io import BytesIO
 
 
 def _load_image(image_input):
-    """Load image from various input types (file path, URL, PIL Image)."""
+    """Load image from URL or base64 data."""
     if isinstance(image_input, Image.Image):
         return image_input
     elif isinstance(image_input, str):
-        if image_input.startswith('http'):
+        if image_input.startswith('http://') or image_input.startswith('https://'):
             response = requests.get(image_input)
             return Image.open(BytesIO(response.content))
+        elif image_input.startswith('data:image'):
+            # Handle base64 data URLs: data:image/png;base64,xxxx
+            import base64
+            data = image_input.split(',')[1]
+            return Image.open(BytesIO(base64.b64decode(data)))
         else:
-            return Image.open(image_input)
+            # Try as file path (for local testing)
+            import os
+            if os.path.exists(image_input):
+                return Image.open(image_input)
+            raise ValueError(f"Invalid image format. Provide URL or base64 data URL. Received: {image_input[:100]}")
     else:
         raise ValueError(f"Unsupported image type: {type(image_input)}")
 
