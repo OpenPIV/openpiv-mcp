@@ -28,10 +28,12 @@ if __name__ == "__main__":
     app = mcp.streamable_http_app()
     
     # Run with uvicorn
+    # Use h11 (HTTP/1.1) for better compatibility with HF Spaces proxy
     import uvicorn
     uvicorn.run(
         app,
         host=HOST,
         port=PORT,
         forwarded_allow_ips="*",
+        http="h11",
     )
