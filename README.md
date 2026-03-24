@@ -3,8 +3,8 @@ title: OpenPIV MCP Server
 emoji: 🌊
 colorFrom: blue
 colorTo: purple
-sdk: docker
-sdk_version: edge
+sdk: gradio
+sdk_version: 5.0.0
 pinned: false
 license: mit
 ---
@@ -17,173 +17,139 @@ Particle Image Velocimetry (PIV) analysis via MCP protocol.
 
 - **compute_piv**: Compute velocity fields from image pairs
 - **create_quiver_plot**: Generate vector field visualizations
+- **Web UI**: Interactive Gradio interface for uploading images and viewing results
+- **MCP Protocol**: Connect to Claude Desktop, Cursor, Windsurf, and other MCP clients
 
-## Quick Start (First Time Users)
+## Quick Start
 
-### Prerequisites
+### Hugging Face Spaces (Recommended)
 
-```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+The server is deployed on Hugging Face Spaces with both web UI and MCP endpoint:
 
-# Clone and set up the project
-git clone https://huggingface.co/spaces/alexliberzon/openpiv-mcp
-cd openpiv-mcp
-uv sync
-```
+- **Web UI**: https://alexliberzon-openpiv-mcp.hf.space
+- **MCP Endpoint**: `https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/`
 
-### Test with Demo Images
+### Using with MCP Clients
 
-Run the MCP server and test with included demo images:
+#### Claude Desktop / Cursor / Windsurf
 
-```bash
-cd /home/user/Documents/GitHub/openpiv-mcp
-uv run python -c "
-import asyncio
-from mcp.client.stdio import stdio_client, StdioServerParameters
-from mcp import ClientSession
+Add to your MCP client configuration:
 
-async def test():
-    img_a = 'demo/test1/exp1_001_a.bmp'
-    img_b = 'demo/test1/exp1_001_b.bmp'
-    
-    server_params = StdioServerParameters(
-        command='uv',
-        args=['run', 'python', 'src/openpiv_mcp.py'],
-    )
-    
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            
-            # Compute PIV
-            result = await session.call_tool(
-                'compute_piv',
-                arguments={
-                    'image_a_path': img_a,
-                    'image_b_path': img_b,
-                    'window_size': 32,
-                    'overlap': 16,
-                    'dt': 1.0
-                }
-            )
-            print(result.content[0].text)
-            
-            # Create quiver plot
-            import re
-            csv_match = re.search(r'/[\w/.]+/piv_results\.csv', result.content[0].text)
-            if csv_match:
-                plot_result = await session.call_tool(
-                    'create_quiver_plot',
-                    arguments={'csv_path': csv_match.group(), 'title': 'PIV Velocity Field'}
-                )
-                print(plot_result.content[0].text)
-
-asyncio.run(test())
-"
-```
-
-**Expected Output:**
-```
-PIV computation successful!
-Full data saved to: /tmp/piv_results.csv
-Summary Statistics:
-- Total vectors computed: 660
-- Mean U velocity: -0.0814
-- Max U velocity: 1.7142
-- Max V velocity: 6.9067
-The LLM can now use pandas or python tools to plot the data from /tmp/piv_results.csv if requested.
-
-Quiver plot created successfully!
-Saved to: /tmp/piv_quiver.png
-Plot details:
-- Grid size: 30 x 22 vectors
-- Velocity range: 4.1213 to 6.9133
-- Colormap: viridis
-```
-
-### Using with Claude Desktop
-
-1. Open Claude Desktop config:
-   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-2. Add the server configuration:
 ```json
 {
   "mcpServers": {
     "openpiv": {
-      "command": "uv",
-      "args": ["run", "python", "/absolute/path/to/openpiv-mcp/src/openpiv_mcp.py"]
+      "url": "https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/",
+      "description": "PIV analysis for fluid dynamics"
     }
   }
 }
 ```
 
-3. Restart Claude Desktop and ask:
-   - "Analyze these two PIV images: [attach image1.bmp, image2.bmp]"
-   - "Create a velocity field visualization from the PIV results"
+**Config file locations:**
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-### Using with Qwen Code
-
-Import the client module in your Python code:
+#### Qwen Code (Python)
 
 ```python
-from openpiv_client import compute_piv, create_quiver_plot
+from mcp.client.streamable_http import streamablehttp_client
+from mcp import ClientSession
 import asyncio
 
 async def analyze():
-    # Compute velocity field from two images
-    result = await compute_piv(
-        image_a_path="/path/to/image1.bmp",
-        image_b_path="/path/to/image2.bmp",
-        window_size=32,
-        overlap=16
-    )
-    print(result)
+    url = "https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/"
     
-    # Create visualization
-    plot_result = await create_quiver_plot(
-        csv_path="/tmp/piv_results.csv",
-        title="My Flow Field"
-    )
-    print(plot_result)
+    async with streamablehttp_client(url) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            print([t.name for t in tools.tools])
+            
+            # Call compute_piv tool
+            result = await session.call_tool(
+                "compute_piv",
+                arguments={
+                    "image_a": "path/to/image1.png",
+                    "image_b": "path/to/image2.png",
+                    "window_size": 32,
+                    "overlap": 16,
+                    "dt": 1.0
+                }
+            )
+            print(result.content[0].text)
 
 asyncio.run(analyze())
 ```
 
-## Usage
-
-### Local Development (stdio mode)
+### Local Development
 
 ```bash
-# Run the MCP server in stdio mode
-.venv/bin/python src/openpiv_mcp.py
+# Clone the repository
+git clone https://huggingface.co/spaces/alexliberzon/openpiv-mcp
+cd openpiv-mcp
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the Gradio app with MCP server
+python gradio_app.py
 ```
 
-### HuggingFace Spaces (HTTP mode)
+The app will be available at `http://localhost:7860` and MCP endpoint at `/gradio_api/mcp/`
 
-**IMPORTANT**: The container may need to be rebuilt. If you see "Not Found" errors:
-- Try: `https://alexliberzon-openpiv-mcp.hf.space/mcp` (no trailing slash)
-- Use header: `Accept: application/json, text/event-stream`
+## Web UI Usage
 
-The MCP endpoint:
+1. **PIV Analysis Tab**:
+   - Upload two consecutive frames (Frame A and Frame B)
+   - Adjust window size, overlap, and time delay parameters
+   - Click "Compute PIV" to get velocity field data
+
+2. **Quiver Plot Tab**:
+   - Upload the CSV file from PIV analysis
+   - Adjust plot title and arrow scale
+   - Click "Create Quiver Plot" to visualize the velocity field
+
+## API Reference
+
+### compute_piv
+
+Compute Particle Image Velocimetry velocity field from two images.
+
+**Parameters:**
+- `image_a` (PIL.Image): First image frame
+- `image_b` (PIL.Image): Second image frame
+- `window_size` (int): Interrogation window size (default: 32)
+- `overlap` (int): Overlap between windows (default: 16)
+- `dt` (float): Time delay between frames (default: 1.0)
+
+**Returns:** Summary statistics and CSV file path
+
+### create_quiver_plot
+
+Create a quiver (vector field) plot from PIV results.
+
+**Parameters:**
+- `csv_file` (str): Path to PIV results CSV file
+- `title` (str): Plot title (default: "PIV Velocity Field")
+- `scale` (int): Quiver scale factor (default: 50)
+- `cmap` (str): Colormap (default: "viridis")
+
+**Returns:** PIL Image of the quiver plot
+
+## Example Output
+
 ```
-https://alexliberzon-openpiv-mcp.hf.space/mcp
-```
+**PIV computation successful!**
 
-## Testing
-
-```bash
-# Test local stdio mode
-.venv/bin/python -m pytest tests/test_client.py -v
-
-# Test PIV computation
-.venv/bin/python -m pytest tests/test_piv_compute.py -v
-
-# Test HTTP server
-.venv/bin/python app.py &
-curl http://localhost:7860/health
+**Summary Statistics:**
+- Total vectors computed: 660
+- Valid vectors (s2n>1): 580
+- Mean U velocity: -0.0814
+- Max U velocity: 1.7142
+- Max V velocity: 6.9067
 ```
 
 ## License
