@@ -1,15 +1,14 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
 
-This app runs the MCP server with Streamable HTTP transport.
+This mounts the MCP server as a Starlette app for Hugging Face Spaces.
 
 API Endpoint:
-    /mcp - MCP Streamable HTTP endpoint (no trailing slash)
+    /mcp - MCP Streamable HTTP endpoint
     /health - Health check endpoint (JSON)
 
 Usage with MCP client:
-    IMPORTANT: Use exactly /mcp (NO trailing slash)
-    Example: https://alexliberzon-openpiv-mcp.hf.space/mcp
+    URL: https://alexliberzon-openpiv-mcp.hf.space/mcp
 """
 
 import os
@@ -23,53 +22,16 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 7860))
 
 if __name__ == "__main__":
-    import uvicorn
-    from starlette.applications import Starlette
-    from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
-    from starlette.routing import Route
     from openpiv_mcp import mcp
-
-    # Create MCP app with streamable HTTP transport
-    mcp_app = mcp.streamable_http_app()
-    session_manager = mcp.session_manager
-
-    # Health check endpoints
-    async def health(request):
-        return JSONResponse({"status": "healthy", "service": "openpiv-mcp"})
-
-    async def root(request):
-        return PlainTextResponse(
-            "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
-        )
-
-    # Redirect /mcp/ to /mcp to avoid 404 (handles all HTTP methods including POST)
-    async def redirect_mcp_slash(request):
-        return RedirectResponse(url="/mcp", status_code=307)
-
-    # Create app with proper lifespan for session manager
-    async def lifespan(app):
-        async with session_manager.run():
-            yield
-
-    # Create app with explicit routes - redirect for /mcp/ must come before mount
-    app = Starlette(
-        routes=[
-            Route("/", root),
-            Route("/health", health),
-            Route("/mcp/", redirect_mcp_slash, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]),
-        ],
-        lifespan=lifespan,
-    )
-
-    # Mount MCP at root - MCP's /mcp becomes /mcp on host
-    app.mount("/", mcp_app)
-
-    # Run with uvicorn using h11 for HF Spaces compatibility
-    # h11 (HTTP/1.1) works better with HF proxy than httptools (HTTP/2)
+    
+    # Get the MCP HTTP app
+    app = mcp.streamable_http_app()
+    
+    # Run with uvicorn
+    import uvicorn
     uvicorn.run(
         app,
         host=HOST,
         port=PORT,
         forwarded_allow_ips="*",
-        http="h11",
     )

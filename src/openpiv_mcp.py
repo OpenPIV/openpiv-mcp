@@ -183,5 +183,21 @@ def create_quiver_plot(
 
 
 if __name__ == "__main__":
-    # Runs the server over stdio (standard for local MCP clients like Claude Desktop)
-    mcp.run()
+    import os
+    
+    # Check if running in remote/HTTP mode (e.g., Hugging Face Spaces)
+    PORT = os.environ.get("PORT")
+    
+    if PORT:
+        # Remote mode: HTTP transport for cloud deployment
+        print(f"Starting OpenPIV MCP Server in HTTP mode on port {PORT}")
+        mcp.run(
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=int(PORT),
+            log_level="info"
+        )
+    else:
+        # Local mode: stdio transport for MCP clients (Claude Desktop, Qwen Code)
+        print("Starting OpenPIV MCP Server in stdio mode")
+        mcp.run()
