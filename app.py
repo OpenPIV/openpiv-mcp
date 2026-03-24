@@ -1,5 +1,6 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
+v2 - Updated to use Streamable HTTP transport
 
 This app runs the MCP server with Streamable HTTP transport.
 
