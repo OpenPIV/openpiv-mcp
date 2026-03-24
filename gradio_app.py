@@ -231,9 +231,10 @@ if __name__ == "__main__":
     # Get port from environment (Hugging Face Spaces)
     port = int(os.environ.get("PORT", 7860))
     
-    # Launch with MCP server enabled
+    # Launch with MCP server enabled and verbose errors
     demo.launch(
         server_port=port,
         server_name="0.0.0.0",
         mcp_server=True,  # Enable MCP!
+        show_error=True,  # Show detailed errors
     )
