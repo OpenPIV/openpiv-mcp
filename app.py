@@ -1,11 +1,11 @@
 """
 Hugging Face Spaces entry point for OpenPIV MCP Server.
 
-This app runs the MCP server with SSE transport on Hugging Face Spaces.
+This app runs the MCP server with Streamable HTTP transport.
 
 API Endpoint:
-    /mcp - MCP SSE endpoint
-    / - Health check endpoint
+    /mcp - MCP Streamable HTTP endpoint
+    /health - Health check endpoint (JSON)
 
 Usage with MCP client:
     Configure your MCP client to connect to:
@@ -14,59 +14,50 @@ Usage with MCP client:
 
 import os
 import sys
-import logging
 
 # Add src directory to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse, PlainTextResponse
-from openpiv_mcp import mcp
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Get configuration from environment
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 7860))
 
-# Get the MCP SSE app
-mcp_sse_app = mcp.sse_app()
-
-# Create a FastAPI wrapper for health checks
-app = FastAPI(
-    title="OpenPIV MCP Server",
-    description="Particle Image Velocimetry analysis via MCP protocol",
-)
-
-# Health check endpoints
-@app.get("/", response_class=PlainTextResponse)
-async def root():
-    """Root health check endpoint."""
-    return "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
-
-@app.get("/health", response_class=JSONResponse)
-async def health():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "openpiv-mcp"}
-
-# Mount MCP app at /mcp
-app.mount("/mcp", mcp_sse_app)
-
 if __name__ == "__main__":
     import uvicorn
-    
-    logger.info(f"Starting OpenPIV MCP Server on {HOST}:{PORT}")
-    logger.info("MCP endpoint: /mcp")
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse, PlainTextResponse
+    from starlette.routing import Route, Mount
+    from openpiv_mcp import mcp
 
-    config = uvicorn.Config(
-        app,
-        host=HOST,
-        port=PORT,
-        forwarded_allow_ips="*",
-        proxy_headers=True,
-        http="h11",
+    # Create MCP app first to initialize session_manager
+    mcp_app = mcp.streamable_http_app()
+
+    # Get the session manager for lifespan
+    session_manager = mcp.session_manager
+
+    # Create health check endpoints
+    async def health(request):
+        return JSONResponse({"status": "healthy", "service": "openpiv-mcp"})
+
+    async def root(request):
+        return PlainTextResponse(
+            "OpenPIV MCP Server is running. Connect to /mcp for MCP protocol."
+        )
+
+    # Create app with proper lifespan to initialize MCP session manager
+    async def lifespan(app):
+        async with session_manager.run():
+            yield
+
+    # Create combined app with health endpoints and proper lifespan
+    app = Starlette(
+        routes=[
+            Route("/", root),
+            Route("/health", health),
+            Mount("/", app=mcp_app),
+        ],
+        lifespan=lifespan,
     )
-    server = uvicorn.Server(config)
-    server.run()
+
+    # Run with uvicorn
+    uvicorn.run(app, host=HOST, port=PORT)
