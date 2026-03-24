@@ -27,6 +27,7 @@ if __name__ == "__main__":
     from starlette.applications import Starlette
     from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
     from starlette.routing import Route
+    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
     from openpiv_mcp import mcp
 
     # Create MCP app - this is the core MCP server
@@ -66,10 +67,8 @@ if __name__ == "__main__":
     # Because explicit Route /mcp/ is defined above, it will match first
     app.mount("/", mcp_app)
 
+    # Add ProxyHeadersMiddleware to handle HF proxy
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
     # Run with uvicorn - allow all hosts for HF proxy
-    uvicorn.run(
-        app,
-        host=HOST,
-        port=PORT,
-        forwarded_allow_ips="*",
-    )
+    uvicorn.run(app, host=HOST, port=PORT, forwarded_allow_ips="*")
