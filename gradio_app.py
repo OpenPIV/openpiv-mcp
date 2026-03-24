@@ -15,7 +15,14 @@ import matplotlib.pyplot as plt
 import tempfile
 import os
 from PIL import Image
-import requests
+
+# Optional requests for URL images
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
+
 from io import BytesIO
 
 
@@ -25,6 +32,8 @@ def _load_image(image_input):
         return image_input
     elif isinstance(image_input, str):
         if image_input.startswith('http://') or image_input.startswith('https://'):
+            if not HAS_REQUESTS:
+                raise ValueError("URL images require 'requests' package. Install with: pip install requests")
             response = requests.get(image_input)
             return Image.open(BytesIO(response.content))
         elif image_input.startswith('data:image'):
@@ -34,10 +43,9 @@ def _load_image(image_input):
             return Image.open(BytesIO(base64.b64decode(data)))
         else:
             # Try as file path (for local testing)
-            import os
             if os.path.exists(image_input):
                 return Image.open(image_input)
-            raise ValueError(f"Invalid image format. Provide URL or base64 data URL. Received: {image_input[:100]}")
+            raise ValueError(f"Invalid image format. Provide URL, base64 data URL, or existing file path. Received: {image_input[:100]}")
     else:
         raise ValueError(f"Unsupported image type: {type(image_input)}")
 
@@ -48,7 +56,7 @@ def compute_piv(
     window_size: int = 32,
     overlap: int = 16,
     dt: float = 1.0
-) -> str:
+) -> tuple:
     """
     Compute Particle Image Velocimetry (PIV) velocity field from two images.
     
@@ -60,7 +68,7 @@ def compute_piv(
         dt: Time delay between frames in seconds (default 1.0)
     
     Returns:
-        Summary statistics and path to CSV file with velocity data
+        Tuple of (summary text, csv_file_path, quiver_plot_image)
     """
     try:
         # Load images
@@ -102,7 +110,7 @@ def compute_piv(
         
         # Summary statistics
         valid_vectors = df[df['s2n'] > 1.0]
-        return (
+        summary = (
             f"**PIV computation successful!**\n\n"
             f"**Summary Statistics:**\n"
             f"- Total vectors computed: {len(df)}\n"
@@ -112,9 +120,55 @@ def compute_piv(
             f"- Max V velocity: {df['v'].max():.4f}\n\n"
             f"Full data saved to: `{output_path}`"
         )
+        
+        # Auto-create quiver plot
+        x_unique = np.unique(df['x'].values)
+        y_unique = np.unique(df['y'].values)
+        nx, ny = len(x_unique), len(y_unique)
+        
+        X = df['x'].values.reshape(ny, nx)
+        Y = df['y'].values.reshape(ny, nx)
+        U = df['u'].values.reshape(ny, nx)
+        V = df['v'].values.reshape(ny, nx)
+        
+        magnitude = np.sqrt(U**2 + V**2)
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        q = ax.quiver(X, Y, U, V, magnitude, cmap='viridis', 
+                      scale=50, width=0.003, alpha=0.8)
+        plt.colorbar(q, ax=ax, label='Velocity Magnitude (pixels/dt)')
+        ax.set_xlabel('X (pixels)')
+        ax.set_ylabel('Y (pixels)')
+        ax.set_title('PIV Velocity Field')
+        ax.set_aspect('equal')
+        
+        plot_path = os.path.join(tempfile.gettempdir(), "piv_quiver.png")
+        plt.tight_layout()
+        plt.savefig(plot_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        quiver_img = Image.open(plot_path)
+        
+        return summary, output_path, quiver_img
+        
     except Exception as e:
         import traceback
-        return f"**Error:** {str(e)}\n\n{traceback.format_exc()}"
+        error_msg = f"**Error:** {str(e)}\n\n{traceback.format_exc()}"
+        return error_msg, None, None
+
+
+def compute_piv_mcp(
+    image_a,
+    image_b,
+    window_size: int = 32,
+    overlap: int = 16,
+    dt: float = 1.0
+) -> str:
+    """
+    Compute PIV and return text summary (for MCP clients).
+    """
+    summary, _, _ = compute_piv(image_a, image_b, window_size, overlap, dt)
+    return summary
 
 
 def create_quiver_plot(
@@ -185,6 +239,9 @@ with gr.Blocks(title="OpenPIV MCP Server") as demo:
     gr.Markdown("# 🌊 OpenPIV MCP Server")
     gr.Markdown("Particle Image Velocimetry (PIV) analysis for fluid dynamics research")
     
+    # State to share CSV path between tabs
+    csv_state = gr.State(value=None)
+    
     with gr.Tab("📊 PIV Analysis"):
         gr.Markdown("Upload two consecutive frames to compute the velocity field")
         
@@ -198,12 +255,15 @@ with gr.Blocks(title="OpenPIV MCP Server") as demo:
             dt = gr.Number(label="Time Delay (dt)", value=1.0, step=0.1)
         
         piv_btn = gr.Button("🔬 Compute PIV", variant="primary")
-        piv_output = gr.Markdown(label="Results")
+        
+        with gr.Row():
+            piv_output = gr.Markdown(label="Results")
+            quiver_output = gr.Image(label="Auto-generated Quiver Plot")
         
         piv_btn.click(
             fn=compute_piv,
             inputs=[img_a, img_b, window_size, overlap, dt],
-            outputs=piv_output
+            outputs=[piv_output, csv_state, quiver_output]
         )
     
     with gr.Tab("🗺️ Quiver Plot"):
@@ -226,12 +286,29 @@ with gr.Blocks(title="OpenPIV MCP Server") as demo:
     
     gr.Markdown("""
     ---
-    **MCP Endpoint:** `/gradio_api/mcp/`
+    ### 🔌 MCP Endpoint for AI Assistants
     
-    **Usage with MCP clients:**
-    - Claude Desktop, Cursor, Windsurf can connect to this server
-    - URL: `https://your-space.hf.space/gradio_api/mcp/`
+    **URL:** `https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/`
+    
+    **Usage with Claude Desktop, Cursor, Windsurf:**
+    ```json
+    {
+      "mcpServers": {
+        "openpiv": {
+          "url": "https://alexliberzon-openpiv-mcp.hf.space/gradio_api/mcp/"
+        }
+      }
+    }
+    ```
+    
+    **Usage with Qwen Code:**
+    Add the MCP server configuration to enable PIV analysis directly in your AI assistant.
     """)
+    
+    # MCP-only API endpoints (not shown in UI)
+    with gr.Blocks(api_only=True):
+        gr.load_api(compute_piv_mcp, name="compute_piv")
+        gr.load_api(create_quiver_plot, name="create_quiver_plot")
 
 # Launch with MCP server enabled
 if __name__ == "__main__":
