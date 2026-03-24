@@ -29,12 +29,14 @@ Particle Image Velocimetry (PIV) analysis via MCP protocol.
 
 ### HuggingFace Spaces (HTTP mode)
 
-Connect your MCP client to:
+**IMPORTANT**: The container may need to be rebuilt. If you see "Not Found" errors:
+- Try: `https://alexliberzon-openpiv-mcp.hf.space/mcp` (no trailing slash)
+- Use header: `Accept: application/json, text/event-stream`
+
+The MCP endpoint:
 ```
 https://alexliberzon-openpiv-mcp.hf.space/mcp
 ```
-
-Note: The MCP endpoint requires both `application/json` and `text/event-stream` in the Accept header.
 
 ## Testing
 
