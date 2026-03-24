@@ -152,7 +152,7 @@ def create_quiver_plot(
 
 
 # Create Gradio interface
-with gr.Blocks(title="OpenPIV MCP Server", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="OpenPIV MCP Server") as demo:
     gr.Markdown("# 🌊 OpenPIV MCP Server")
     gr.Markdown("Particle Image Velocimetry (PIV) analysis for fluid dynamics research")
     
