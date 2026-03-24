@@ -7,6 +7,7 @@ sdk: gradio
 sdk_version: 5.0.0
 pinned: false
 license: mit
+app_file: gradio_app.py
 ---
 
 # OpenPIV MCP Server
