@@ -66,5 +66,10 @@ if __name__ == "__main__":
     # Because explicit Route /mcp/ is defined above, it will match first
     app.mount("/", mcp_app)
 
-    # Run with uvicorn - allow forwarded hosts for HF proxy
-    uvicorn.run(app, host=HOST, port=PORT, forwarded_allow_ips="*")
+    # Run with uvicorn - allow all hosts for HF proxy
+    uvicorn.run(
+        app,
+        host=HOST,
+        port=PORT,
+        forwarded_allow_ips="*",
+    )
